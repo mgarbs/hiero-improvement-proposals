@@ -167,3 +167,15 @@ jobs:
           echo "--- Generated draft_hips.json content ---"
           cat _data/draft_hips.json
           echo "--- End of file ---"
+          
+      - name: Commit and Push Changes
+        # Only run this step if we want to actually commit the changes
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        env:
+          GITHUB_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
+          GITHUB_USER_NAME: ${{ secrets.GIT_USER_NAME }}
+        run: |
+          git config --local user.email "$GITHUB_USER_EMAIL"
+          git config --local user.name "$GITHUB_USER_NAME"
+          git add _data/draft_hips.json
+          git diff --staged --quiet || (git commit -s -S -m "Update draft HIPs data [skip ci]" && git push origin main)
