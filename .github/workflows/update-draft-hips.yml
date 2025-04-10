@@ -1,14 +1,16 @@
 name: Update Draft HIPs Data
 
 on:
-  schedule:
-    - cron: "0 */6 * * *" # Runs every 6 hours
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: ['**']
   workflow_dispatch: # Allows manual triggering
 
 jobs:
   update-draft-hips:
-    if: github.ref == 'refs/heads/main' # Only run on main branch
-    runs-on: hiero-improvement-proposals-linux-medium
+    # Run on any branch to allow testing
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: read
@@ -38,6 +40,7 @@ jobs:
           mkdir -p _data
           cat << 'EOF' > fetch-draft-hips.js
           const https = require('https');
+          const fs = require('fs');
 
           async function makeGraphQLRequest(query, token) {
             return new Promise((resolve, reject) => {
@@ -55,7 +58,13 @@ jobs:
               const req = https.request(options, (res) => {
                 let data = '';
                 res.on('data', chunk => { data += chunk; });
-                res.on('end', () => resolve(JSON.parse(data)));
+                res.on('end', () => {
+                  try {
+                    resolve(JSON.parse(data));
+                  } catch (e) {
+                    reject(new Error(`Failed to parse response: ${e.message}. Data: ${data}`));
+                  }
+                });
               });
 
               req.on('error', reject);
@@ -86,6 +95,8 @@ jobs:
                       author {
                         login
                       }
+                      createdAt
+                      updatedAt
                     }
                   }
                 }
@@ -107,10 +118,39 @@ jobs:
             }
           }
 
+          function isHipPR(pr) {
+            // Check if PR contains HIP file changes
+            // Assumes HIPs are stored in a directory like 'hip' or have a filename pattern
+            const fileEdges = pr.files.edges || [];
+            
+            // Check if any file path matches HIP pattern
+            return fileEdges.some(edge => {
+              const path = edge.node.path;
+              // Adjust this pattern to match your HIP file structure
+              return path.match(/^hip\/hip-\d+\.md$/) || 
+                     path.match(/^hips\/hip-\d+\.md$/) ||
+                     path.match(/^content\/hips\/hip-\d+\.md$/);
+            });
+          }
+
           // Run the main function
           getAllPRs().then(prs => {
-            const fs = require('fs');
-            fs.writeFileSync('_data/draft_hips.json', JSON.stringify(prs, null, 2));
+            // Filter to only include PRs that contain HIP changes
+            const hipPRs = prs.filter(isHipPR);
+            
+            console.log(`Found ${prs.length} open PRs in total`);
+            console.log(`Found ${hipPRs.length} open PRs containing HIP changes`);
+            
+            // Always create a completely new file - never append
+            // This ensures there are no duplicates from previous runs
+            if (fs.existsSync('_data/draft_hips.json')) {
+              console.log('Removing old draft_hips.json file');
+              fs.unlinkSync('_data/draft_hips.json');
+            }
+            
+            // Write a brand new file with only the current PR data
+            console.log('Creating fresh draft_hips.json file');
+            fs.writeFileSync('_data/draft_hips.json', JSON.stringify(hipPRs, null, 2));
           }).catch(error => {
             console.error('Failed to fetch PRs:', error);
             process.exit(1);
@@ -122,13 +162,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
 
-      - name: Commit and Push Changes
-        env:
-          GITHUB_USER_EMAIL: ${{ secrets.GIT_USER_EMAIL }}
-          GITHUB_USER_NAME: ${{ secrets.GIT_USER_NAME }}
+      - name: Print Results for Testing
         run: |
-          git config --local user.email "$GITHUB_USER_EMAIL"
-          git config --local user.name "$GITHUB_USER_NAME"
-          git add _data/draft_hips.json
-          git commit -s -S -m "Update draft HIPs data [skip ci]" || echo "No changes to commit"
-          git push origin main || echo "No changes to push"
+          echo "--- Generated draft_hips.json content ---"
+          cat _data/draft_hips.json
+          echo "--- End of file ---"
