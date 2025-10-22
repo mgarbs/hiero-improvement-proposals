@@ -17,17 +17,22 @@ on:
       inactivity_days:
         description: 'Days of inactivity before marking as stale'
         required: false
-        default: '0'
+        default: '60'
       warning_days:
         description: 'Days after warning before closing'
         required: false
-        default: '0'
+        default: '14'
 
 jobs:
   manage-stale-hips:
-    runs-on: ubuntu-latest
+    runs-on: hiero-improvement-proposals-linux-medium
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+
       - name: Check out the code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
