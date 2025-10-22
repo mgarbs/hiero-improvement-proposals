@@ -25,7 +25,7 @@ on:
 
 jobs:
   manage-stale-hips:
-    runs-on: hiero-improvement-proposals-linux-medium
+    runs-on: ubuntu-latest
 
     steps:
       - name: Harden Runner
