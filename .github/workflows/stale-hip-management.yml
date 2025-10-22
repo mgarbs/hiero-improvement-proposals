@@ -138,7 +138,7 @@ To prevent automatic closure, simply add a comment with an update, make a commit
                 gh pr comment $PR_NUMBER --body "This HIP has been marked as Stagnant due to inactivity. Feel free to reopen when ready to continue."
 
                 # Close the PR
-                gh pr close $PR_NUMBER --comment "Closing as Stagnant due to inactivity."
+                gh pr close $PR_NUMBER
 
                 echo "  PR #$PR_NUMBER closed successfully"
 
