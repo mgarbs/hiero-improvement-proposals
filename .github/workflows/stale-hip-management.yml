@@ -80,36 +80,24 @@ jobs:
 
             echo "  Days inactive: $DAYS_INACTIVE"
 
-            # Check if PR has 'stale' label
-            HAS_STALE_LABEL=false
-            if echo "$LABELS" | grep -q "stale"; then
-              HAS_STALE_LABEL=true
-            fi
-
             # PHASE 1: Initial Warning Phase
-            if [ $DAYS_INACTIVE -ge $INACTIVITY_DAYS ] && [ "$HAS_STALE_LABEL" = false ]; then
-              echo "  Marking PR #$PR_NUMBER as stale (inactive for $DAYS_INACTIVE days)"
+            # Check if warning comment already exists
+            STALE_COMMENT=$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" \
+              --jq '.[] | select(.body | contains("appears to have been inactive")) | {created_at: .created_at, reactions: .reactions.total_count}' | head -1)
 
-              # Add stale label
-              gh pr edit $PR_NUMBER --add-label "stale"
+            if [ $DAYS_INACTIVE -ge $INACTIVITY_DAYS ] && [ -z "$STALE_COMMENT" ]; then
+              echo "  Posting warning for PR #$PR_NUMBER (inactive for $DAYS_INACTIVE days)"
 
-              # Post warning comment
+              # Post warning comment (no label yet)
               gh pr comment $PR_NUMBER --body "This HIP appears to have been inactive for $DAYS_INACTIVE days. If there is no activity or response within $WARNING_DAYS days, it will be marked as Stagnant and closed.
 
 To prevent automatic closure, simply add a comment with an update, make a commit, or react to this message. Maintainers can also add a \`keep-open\` label to exempt this HIP."
 
+              echo "  Warning posted for PR #$PR_NUMBER"
+
             # PHASE 2: Stagnant Processing Phase
-            elif [ "$HAS_STALE_LABEL" = true ]; then
-              echo "  PR #$PR_NUMBER has stale label, checking warning period..."
-
-              # Get the stale warning comment
-              STALE_COMMENT=$(gh api "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" \
-                --jq '.[] | select(.body | contains("appears to have been inactive")) | {created_at: .created_at, reactions: .reactions.total_count}' | head -1)
-
-              if [ -z "$STALE_COMMENT" ]; then
-                echo "  No stale warning comment found, skipping"
-                continue
-              fi
+            elif [ -n "$STALE_COMMENT" ]; then
+              echo "  PR #$PR_NUMBER has warning comment, checking warning period..."
 
               COMMENT_TIME=$(echo "$STALE_COMMENT" | jq -r '.created_at')
               REACTION_COUNT=$(echo "$STALE_COMMENT" | jq -r '.reactions')
@@ -138,6 +126,9 @@ To prevent automatic closure, simply add a comment with an update, make a commit
               # Check if warning period has passed and no reactions/activity
               if [ $DAYS_SINCE_WARNING -ge $WARNING_DAYS ] && [ "$HAS_ACTIVITY" = false ]; then
                 echo "  Closing PR #$PR_NUMBER as Stagnant (warning period expired)"
+
+                # Add stale label
+                gh pr edit $PR_NUMBER --add-label "stale"
 
                 # Post closing comment
                 gh pr comment $PR_NUMBER --body "This HIP has been marked as Stagnant due to inactivity. Feel free to reopen when ready to continue."
