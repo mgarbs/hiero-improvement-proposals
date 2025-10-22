@@ -120,8 +120,18 @@ To prevent automatic closure, simply add a comment with an update, make a commit
               echo "    Days since warning: $DAYS_SINCE_WARNING"
               echo "    Reactions on warning: $REACTION_COUNT"
 
+              # Check if PR was updated after the warning
+              HAS_ACTIVITY=false
+              if [ "$REACTION_COUNT" -gt 0 ]; then
+                HAS_ACTIVITY=true
+                echo "    PR has reactions on warning comment"
+              elif [ $UPDATED_EPOCH -gt $COMMENT_EPOCH ]; then
+                HAS_ACTIVITY=true
+                echo "    PR was updated after warning (new activity detected)"
+              fi
+
               # Check if warning period has passed and no reactions/activity
-              if [ $DAYS_SINCE_WARNING -ge $WARNING_DAYS ] && [ "$REACTION_COUNT" -eq 0 ]; then
+              if [ $DAYS_SINCE_WARNING -ge $WARNING_DAYS ] && [ "$HAS_ACTIVITY" = false ]; then
                 echo "  Closing PR #$PR_NUMBER as Stagnant (warning period expired)"
 
                 # Post closing comment
@@ -133,8 +143,8 @@ To prevent automatic closure, simply add a comment with an update, make a commit
                 echo "  PR #$PR_NUMBER closed successfully"
 
               else
-                if [ "$REACTION_COUNT" -gt 0 ]; then
-                  echo "  Warning comment has reactions - keeping open"
+                if [ "$HAS_ACTIVITY" = true ]; then
+                  echo "  PR has activity - keeping open"
                 else
                   echo "  Warning period not yet expired ($DAYS_SINCE_WARNING/$WARNING_DAYS days)"
                 fi
