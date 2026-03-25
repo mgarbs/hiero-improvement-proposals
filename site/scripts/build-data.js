@@ -64,6 +64,8 @@ function extractHip(data, content, extra = {}) {
     'superseded-by': data['superseded-by'] || '',
     replaces: data.replaces || '',
     release: data.release || '',
+    'hedera-review-date': data['hedera-review-date'] || '',
+    'hedera-acceptance-decision': data['hedera-acceptance-decision'] || '',
     ...extra,
   };
 }

@@ -660,6 +660,8 @@ async function showDetail(num) {
     ['Status', `${badge(hip.status)} <span class="status-info-icon" style="width:16px;height:16px;font-size:.6rem">i<span class="tip">${esc(STATUS_TIPS.get(hip.status) || '')}</span></span>`],
     hip['needs-hiero-approval'] ? ['Requires Hiero Approval', norm(hip['needs-hiero-approval'])] : null,
     hip['needs-hedera-review'] ? ['Requires Hedera Review', norm(hip['needs-hedera-review'])] : null,
+    hip['hedera-review-date'] ? ['Hedera Review Date', formatDate(hip['hedera-review-date'])] : null,
+    hip['hedera-acceptance-decision'] ? ['Hedera Acceptance Decision', esc(String(hip['hedera-acceptance-decision']))] : null,
     hip['last-call-date-time'] ? ['Last Call Ends', formatDate(hip['last-call-date-time'])] : null,
     ['Type', esc(hip.type)],
     hip.category ? ['Category', esc(hip.category)] : null,
